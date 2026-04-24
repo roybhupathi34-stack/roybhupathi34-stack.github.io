@@ -1,32 +1,80 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>Interactive Particle Web</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0a0a0a; }
+        canvas { display: block; }
+    </style>
+</head>
 <body>
-  <canvas id="gameCanvas" width="800" height="600" style="border:1px solid #000;"></canvas>
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+    <canvas id="canvas"></canvas>
 
-    let player = { x: 50, y: 50, speed: 5 };
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
 
-    function update() {
-      // Logic: Move player, check collisions, AI behavior
-      player.x += 1; 
+// Handle Resize
+window.addEventListener('resize', init);
+const mouse = { x: null, y: null, radius: 150 };
+window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+
+function init() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    particles = [];
+    for (let i = 0; i < 100; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2,
+            size: 2
+        });
     }
+}
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear screen
-      ctx.fillStyle = "blue";
-      ctx.fillRect(player.x, player.y, 30, 30); // Draw player
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    for (let i = 0; i < particles.length; i++) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Bounce off walls
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        // Draw Dot
+        ctx.fillStyle = 'rgba(0, 255, 200, 0.8)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Check distance between particles and mouse
+        for (let j = i; j < particles.length; j++) {
+            let p2 = particles[j];
+            let dx = p.x - p2.x;
+            let dy = p.y - p2.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 100) {
+                ctx.strokeStyle = `rgba(0, 255, 200, ${1 - dist/100})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
     }
+    requestAnimationFrame(animate);
+}
 
-    function gameLoop() {
-      update();
-      draw();
-      requestAnimationFrame(gameLoop); // Smooth 60fps loop
-    }
-
-    gameLoop();
-  </script>
+init();
+animate();
+</script>
 </body>
 </html>
-
