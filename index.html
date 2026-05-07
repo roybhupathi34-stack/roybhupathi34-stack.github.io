@@ -1,115 +1,494 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Interactive Web & Burst</title>
-    <style>
-        body { margin: 0; overflow: hidden; background: #050505; cursor: crosshair; }
-        canvas { display: block; }
-    </style>
-</head>
-<body>
-    <canvas id="canvas"></canvas>
-
-<script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-let particles = [];
-
-const mouse = { x: null, y: null, radius: 120 };
-
-// Particle Class
-class Particle {
-    constructor(x, y, isBurst = false) {
-        this.x = x || Math.random() * canvas.width;
-        this.y = y || Math.random() * canvas.height;
-        // Burst particles are faster
-        let speedMult = isBurst ? 5 : 1.5;
-        this.vx = (Math.random() - 0.5) * speedMult;
-        this.vy = (Math.random() - 0.5) * speedMult;
-        this.size = isBurst ? 1.5 : 2;
-        this.life = isBurst ? 100 : Infinity; // Burst particles eventually disappear
+<!doctype html>
+<html class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Church of Banan</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&amp;family=Crimson+Text:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet">
+  <style>
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      50% { transform: translateY(-12px) rotate(2deg); }
     }
+    @keyframes glow {
+      0%, 100% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b; }
+      50% { text-shadow: 0 0 40px #fbbf24, 0 0 80px #f59e0b, 0 0 120px #d97706; }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .float-anim { animation: float 3s ease-in-out infinite; }
+    .glow-anim { animation: glow 2s ease-in-out infinite; }
+    .slide-up { animation: slideUp 0.5s ease-out forwards; }
+    .banana-bg {
+      background: radial-gradient(ellipse at top, #1a0a2e 0%, #0d0515 50%, #000000 100%);
+    }
+    .cult-card {
+      background: linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(139,92,246,0.08) 100%);
+      border: 1px solid rgba(251,191,36,0.2);
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full">
+  <div id="app" class="h-full w-full banana-bg overflow-auto flex flex-col items-center px-4 py-8"><!-- Navigation Hub -->
+   <div class="fixed top-4 right-4 flex gap-2 z-50"><button id="nav-shrine" class="nav-btn active bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold transition" style="font-family:'Cinzel Decorative',serif;">🍌 Shrine</button> <button id="nav-orchard" class="nav-btn bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold transition" style="font-family:'Cinzel Decorative',serif;">🌳 Orchard</button> <button id="nav-temple" class="nav-btn bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg font-bold transition" style="font-family:'Cinzel Decorative',serif;">🏛️ Temple</button>
+   </div><!-- Shrine Section -->
+   <div id="shrine-section" class="w-full max-w-2xl"><!-- Banan Idol -->
+    <div class="float-anim text-8xl md:text-9xl mt-4 mb-2 select-none text-center">
+     🍌
+    </div><!-- Title -->
+    <h1 id="main-title" class="text-4xl md:text-5xl text-yellow-400 glow-anim text-center" style="font-family:'Cinzel Decorative',serif;">Church of Banan</h1>
+    <p id="subtitle" class="text-purple-300 mt-2 text-lg italic text-center" style="font-family:'Crimson Text',serif;">All hail the holy fruit</p><!-- Stats -->
+    <div id="cult-stats" class="mt-6 flex gap-6 text-center">
+     <div class="cult-card rounded-xl px-5 py-3">
+      <div id="member-count" class="text-3xl font-bold text-yellow-300" style="font-family:'Cinzel Decorative',serif;">
+       0
+      </div>
+      <div class="text-purple-400 text-sm">
+       Followers
+      </div>
+     </div>
+     <div class="cult-card rounded-xl px-5 py-3">
+      <div id="banana-count" class="text-3xl font-bold text-yellow-300" style="font-family:'Cinzel Decorative',serif;">
+       0
+      </div>
+      <div class="text-purple-400 text-sm">
+       🍌 Offered
+      </div>
+     </div>
+    </div><!-- Join Form -->
+    <div id="join-section" class="mt-8 w-full max-w-md">
+     <div class="cult-card rounded-2xl p-6">
+      <h2 class="text-xl text-yellow-300 text-center mb-4" style="font-family:'Cinzel Decorative',serif;">Join the Banan Cult</h2>
+      <form id="join-form" class="space-y-4">
+       <div><label for="name-input" class="text-purple-300 text-sm block mb-1" style="font-family:'Crimson Text',serif;">Your Name, Child of Banan</label> <input id="name-input" type="text" placeholder="Enter thy name..." class="w-full bg-black/40 border border-yellow-600/40 rounded-lg px-4 py-2 text-yellow-100 placeholder-yellow-900/60 focus:outline-none focus:border-yellow-400 transition" required>
+       </div>
+       <div><label for="offering-input" class="text-purple-300 text-sm block mb-1" style="font-family:'Crimson Text',serif;">Bananas to Offer (1-99)</label> <input id="offering-input" type="number" min="1" max="99" value="1" class="w-full bg-black/40 border border-yellow-600/40 rounded-lg px-4 py-2 text-yellow-100 focus:outline-none focus:border-yellow-400 transition">
+       </div><button id="join-btn" type="submit" class="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black font-bold py-3 rounded-xl transition-all transform hover:scale-105 active:scale-95" style="font-family:'Cinzel Decorative',serif;"> 🍌 Pledge to Banan 🍌 </button>
+      </form>
+      <div id="join-loading" class="hidden text-center text-yellow-300 py-3">
+       Banan receives your offering...
+      </div>
+      <div id="join-error" class="hidden text-center text-red-400 py-2 text-sm"></div>
+      <div id="limit-warning" class="hidden text-center text-red-400 py-2 text-sm">
+       The cult is full! Banan can accept no more followers (999 max).
+      </div>
+     </div>
+    </div><!-- Followers List -->
+    <div class="mt-8 w-full max-w-md mb-8">
+     <h2 class="text-lg text-yellow-300 text-center mb-3" style="font-family:'Cinzel Decorative',serif;">The Faithful</h2>
+     <div id="followers-list" class="space-y-2 max-h-64 overflow-auto"></div>
+     <p id="empty-msg" class="text-purple-500 text-center text-sm italic" style="font-family:'Crimson Text',serif;">No followers yet. Be the first to join!</p>
+    </div><!-- Chat with Banan -->
+    <div class="mt-8 w-full max-w-md mb-8">
+     <div class="cult-card rounded-2xl p-6">
+      <h2 class="text-xl text-yellow-300 text-center mb-4" style="font-family:'Cinzel Decorative',serif;">Commune with Banan</h2>
+      <div id="chat-messages" class="space-y-3 max-h-64 overflow-auto mb-4 bg-black/30 rounded-lg p-3">
+       <div class="text-purple-400 text-center text-sm italic py-2">
+        Banan awaits your words...
+       </div>
+      </div>
+      <form id="chat-form" class="flex gap-2">
+       <input id="chat-input" type="text" placeholder="Ask Banan something..." class="flex-1 bg-black/40 border border-yellow-600/40 rounded-lg px-3 py-2 text-yellow-100 placeholder-yellow-900/60 focus:outline-none focus:border-yellow-400 transition"> <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg transition"> <i data-lucide="send" style="width: 20px; height: 20px;"></i> </button>
+      </form>
+     </div>
+    </div>
+   </div><!-- Orchard Section -->
+   <div id="orchard-section" class="hidden w-full max-w-2xl">
+    <h1 class="text-4xl md:text-5xl text-purple-400 glow-anim text-center mb-4" style="font-family:'Cinzel Decorative',serif;">🌳 Sacred Orchard</h1>
+    <p class="text-purple-300 text-center mb-6 italic" style="font-family:'Crimson Text',serif;">Where the most fruitful bananas grow</p>
+    <div class="space-y-4">
+     <div class="cult-card rounded-2xl p-6">
+      <h2 class="text-2xl text-yellow-300 mb-4" style="font-family:'Cinzel Decorative',serif;">🏆 Legendary Harvesters</h2>
+      <div id="top-harvesters" class="space-y-3">
+       <p class="text-purple-400 text-center text-sm italic">Check back when devotees join...</p>
+      </div>
+     </div>
+     <div class="cult-card rounded-2xl p-6">
+      <h2 class="text-2xl text-yellow-300 mb-4" style="font-family:'Cinzel Decorative',serif;">📊 Harvest Statistics</h2>
+      <div id="orchard-stats" class="space-y-2 text-purple-300" style="font-family:'Crimson Text',serif;">
+       <div class="flex justify-between"><span>Total Bananas Offered:</span> <span id="orchard-total" class="text-yellow-300 font-bold">0</span>
+       </div>
+       <div class="flex justify-between"><span>Average per Devotee:</span> <span id="orchard-avg" class="text-yellow-300 font-bold">0</span>
+       </div>
+       <div class="flex justify-between"><span>Most Generous Offering:</span> <span id="orchard-max" class="text-yellow-300 font-bold">0 🍌</span>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div><!-- Temple Section -->
+   <div id="temple-section" class="hidden w-full max-w-2xl">
+    <h1 class="text-4xl md:text-5xl text-amber-300 glow-anim text-center mb-4" style="font-family:'Cinzel Decorative',serif;">🏛️ Grand Temple</h1>
+    <p class="text-amber-200 text-center mb-6 italic" style="font-family:'Crimson Text',serif;">Sacred Ceremonies &amp; Rituals</p>
+    <div class="space-y-4 mb-8">
+     <div class="cult-card rounded-2xl p-6">
+      <h2 class="text-xl text-yellow-300 mb-3" style="font-family:'Cinzel Decorative',serif;">⚡ Daily Ritual</h2><button id="ritual-btn" class="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-bold py-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 mb-3" style="font-family:'Cinzel Decorative',serif;"> 🍌 Perform The Blessing 🍌 </button>
+      <div id="ritual-result" class="hidden text-center text-amber-200 py-2 italic" style="font-family:'Crimson Text',serif;"></div>
+     </div>
+     <div class="cult-card rounded-2xl p-6">
+      <h2 class="text-xl text-yellow-300 mb-3" style="font-family:'Cinzel Decorative',serif;">📜 Banan Scripture</h2>
+      <div id="scripture-display" class="bg-black/30 rounded-lg p-4 text-purple-200 italic text-center min-h-24 flex items-center justify-center" style="font-family:'Crimson Text',serif;">
+       <p id="scripture-text">Seek wisdom in the sacred texts...</p>
+      </div><button id="scripture-btn" class="w-full mt-3 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded-lg transition" style="font-family:'Cinzel Decorative',serif;"> 📖 Read Scripture </button>
+     </div>
+     <div class="cult-card rounded-2xl p-6">
+      <h2 class="text-xl text-yellow-300 mb-3" style="font-family:'Cinzel Decorative',serif;">🎭 Ceremony Records</h2>
+      <div id="ceremony-log" class="space-y-2 max-h-48 overflow-auto">
+       <p class="text-purple-400 text-center text-sm italic">No ceremonies yet...</p>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+  const titles = ["Acolyte", "Devotee", "Peeler", "Prophet", "Herald", "Disciple", "Zealot", "Chosen One", "Banana Knight", "High Priest"];
 
-    update() {
-        // Repulsion logic: Run away from mouse
-        let dx = mouse.x - this.x;
-        let dy = mouse.y - this.y;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < mouse.radius) {
-            let forceX = dx / distance;
-            let forceY = dy / distance;
-            this.x -= forceX * 2;
-            this.y -= forceY * 2;
+  const bananQuotes = [
+    "🍌 The peel is the way.",
+    "🍌 Potassium flows through all things.",
+    "🍌 In yellow we trust.",
+    "🍌 Curves are nature's wisdom.",
+    "🍌 To peel is to be reborn.",
+    "🍌 The bunch is stronger than one.",
+    "🍌 Softness is strength.",
+    "🍌 Rise in the ripeness of time.",
+    "🍌 One cannot harvest what they have not planted.",
+    "🍌 The skin protects the truth within."
+  ];
+
+  const defaultConfig = {
+    main_title: "Church of Banan",
+    subtitle: "All hail the holy fruit",
+    background_color: "#0d0515",
+    surface_color: "#1a0a2e",
+    text_color: "#fde68a",
+    primary_action_color: "#f59e0b",
+    secondary_action_color: "#a78bfa",
+    font_family: "Cinzel Decorative",
+    font_size: 16
+  };
+
+  let allData = [];
+
+  // Element SDK
+  window.elementSdk.init({
+    defaultConfig,
+    onConfigChange: async (config) => {
+      const c = { ...defaultConfig, ...config };
+      document.getElementById('main-title').textContent = c.main_title;
+      document.getElementById('subtitle').textContent = c.subtitle;
+      document.getElementById('main-title').style.color = c.text_color;
+      document.getElementById('main-title').style.fontFamily = `${c.font_family}, Cinzel Decorative, serif`;
+      document.getElementById('subtitle').style.color = c.secondary_action_color;
+      document.getElementById('app').style.background = `radial-gradient(ellipse at top, ${c.surface_color} 0%, ${c.background_color} 50%, #000 100%)`;
+      document.querySelectorAll('.cult-card').forEach(el => {
+        el.style.borderColor = c.primary_action_color + '33';
+      });
+      document.getElementById('join-btn').style.background = `linear-gradient(to right, ${c.primary_action_color}, ${c.primary_action_color}cc)`;
+      const baseSize = c.font_size;
+      document.getElementById('main-title').style.fontSize = `${baseSize * 2.5}px`;
+      document.getElementById('subtitle').style.fontSize = `${baseSize * 1.1}px`;
+    },
+    mapToCapabilities: (config) => {
+      const c = { ...defaultConfig, ...config };
+      const make = (key) => ({
+        get: () => c[key] || defaultConfig[key],
+        set: (v) => { c[key] = v; window.elementSdk.setConfig({ [key]: v }); }
+      });
+      return {
+        recolorables: [make('background_color'), make('surface_color'), make('text_color'), make('primary_action_color'), make('secondary_action_color')],
+        borderables: [],
+        fontEditable: make('font_family'),
+        fontSizeable: make('font_size')
+      };
+    },
+    mapToEditPanelValues: (config) => {
+      const c = { ...defaultConfig, ...config };
+      return new Map([
+        ["main_title", c.main_title],
+        ["subtitle", c.subtitle]
+      ]);
+    }
+  });
+
+  // Data SDK
+  const dataHandler = {
+    onDataChanged(data) {
+      allData = data;
+      document.getElementById('member-count').textContent = data.length;
+      const totalBananas = data.reduce((sum, d) => sum + (d.bananas_offered || 0), 0);
+      document.getElementById('banana-count').textContent = totalBananas;
+
+      const list = document.getElementById('followers-list');
+      const emptyMsg = document.getElementById('empty-msg');
+      emptyMsg.classList.toggle('hidden', data.length > 0);
+
+      const existing = new Map([...list.children].map(el => [el.dataset.id, el]));
+      const sorted = [...data].sort((a, b) => (b.bananas_offered || 0) - (a.bananas_offered || 0));
+
+      sorted.forEach(item => {
+        if (existing.has(item.__backendId)) {
+          const el = existing.get(item.__backendId);
+          el.querySelector('.follower-name').textContent = item.name;
+          el.querySelector('.follower-title').textContent = item.title;
+          el.querySelector('.follower-bananas').textContent = `🍌×${item.bananas_offered}`;
+          existing.delete(item.__backendId);
+        } else {
+          const el = document.createElement('div');
+          el.dataset.id = item.__backendId;
+          el.className = 'cult-card rounded-lg px-4 py-2 flex items-center justify-between slide-up';
+          el.innerHTML = `
+            <div>
+              <span class="follower-name text-yellow-200 font-semibold" style="font-family:'Crimson Text',serif;">${item.name}</span>
+              <span class="follower-title text-purple-400 text-xs ml-2">${item.title}</span>
+            </div>
+            <span class="follower-bananas text-yellow-500 text-sm">🍌×${item.bananas_offered}</span>
+          `;
+          list.appendChild(el);
         }
+      });
+      existing.forEach(el => el.remove());
 
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Bounce off walls
-        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-        
-        if (this.life !== Infinity) this.life--;
+      // Check limit
+      document.getElementById('limit-warning').classList.toggle('hidden', data.length < 999);
     }
+  };
 
-    draw() {
-        ctx.fillStyle = `rgba(0, 255, 180, ${this.life / 100})`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
+  (async () => {
+    await window.dataSdk.init(dataHandler);
+  })();
+
+  // Form
+  document.getElementById('join-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (allData.length >= 999) return;
+
+    const name = document.getElementById('name-input').value.trim();
+    const bananas = Math.min(99, Math.max(1, parseInt(document.getElementById('offering-input').value) || 1));
+    if (!name) return;
+
+    const title = titles[Math.floor(Math.random() * titles.length)];
+    const btn = document.getElementById('join-btn');
+    const loading = document.getElementById('join-loading');
+    const error = document.getElementById('join-error');
+
+    btn.classList.add('hidden');
+    loading.classList.remove('hidden');
+    error.classList.add('hidden');
+
+    const result = await window.dataSdk.create({
+      name,
+      title,
+      bananas_offered: bananas,
+      joined_at: new Date().toISOString()
+    });
+
+    btn.classList.remove('hidden');
+    loading.classList.add('hidden');
+
+    if (result.isOk) {
+      document.getElementById('name-input').value = '';
+      document.getElementById('offering-input').value = '1';
+    } else {
+      error.textContent = 'Banan rejects this offering. Try again.';
+      error.classList.remove('hidden');
     }
-}
+  });
 
-function init() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    particles = [];
-    for (let i = 0; i < 80; i++) particles.push(new Particle());
-}
+  // Chat with Banan
+  document.getElementById('chat-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('chat-input');
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
 
-// Click to Burst
-window.addEventListener('mousedown', (e) => {
-    for (let i = 0; i < 15; i++) {
-        particles.push(new Particle(e.x, e.y, true));
-    }
-});
-
-window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
-window.addEventListener('resize', init);
-
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const messagesDiv = document.getElementById('chat-messages');
     
-    // Filter out "dead" burst particles
-    particles = particles.filter(p => p.life > 0);
-
-    for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-
-        // Draw connections
-        for (let j = i + 1; j < particles.length; j++) {
-            let dx = particles[i].x - particles[j].x;
-            let dy = particles[i].y - particles[j].y;
-            let dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < 100) {
-                let opacity = 1 - dist / 100;
-                ctx.strokeStyle = `rgba(0, 255, 180, ${opacity * 0.5})`;
-                ctx.lineWidth = 0.8;
-                ctx.beginPath();
-                ctx.moveTo(particles[i].x, particles[i].y);
-                ctx.lineTo(particles[j].x, particles[j].y);
-                ctx.stroke();
-            }
-        }
+    // Clear the "awaits your words" message on first message
+    if (messagesDiv.children.length === 1 && messagesDiv.children[0].textContent.includes('awaits')) {
+      messagesDiv.innerHTML = '';
     }
-    requestAnimationFrame(animate);
-}
 
-init();
-animate();
+    // Add user message
+    const userEl = document.createElement('div');
+    userEl.className = 'text-right';
+    userEl.innerHTML = `<div class="inline-block bg-yellow-600/40 rounded-lg px-3 py-2 text-yellow-100 max-w-xs text-sm" style="font-family:'Crimson Text',serif;">${escapeHtml(userMessage)}</div>`;
+    messagesDiv.appendChild(userEl);
+    input.value = '';
+
+    // Simulate thinking then get response
+    setTimeout(() => {
+      const response = getRandomBananResponse(userMessage);
+      const bananEl = document.createElement('div');
+      bananEl.className = 'text-left';
+      bananEl.innerHTML = `<div class="inline-block bg-purple-600/40 rounded-lg px-3 py-2 text-purple-100 max-w-xs text-sm" style="font-family:'Crimson Text',serif;">${response}</div>`;
+      messagesDiv.appendChild(bananEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }, 300);
+
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  });
+
+  function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
+  }
+
+  function getRandomBananResponse(userMessage) {
+    const lower = userMessage.toLowerCase();
+    
+    // Keyword-based responses
+    if (lower.includes('banan') || lower.includes('cult')) {
+      const responses = [
+        "🍌 Banan is eternal.",
+        "🍌 The way of Banan is righteous.",
+        "🍌 You have found the truth, child.",
+        "🍌 Welcome to enlightenment."
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    if (lower.includes('help') || lower.includes('teach') || lower.includes('guide')) {
+      const responses = [
+        "🍌 Seek the yellow path.",
+        "🍌 Knowledge grows in the garden of potassium.",
+        "🍌 The answer lies within your heart.",
+        "🍌 Study the curve, young one."
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    if (lower.includes('love') || lower.includes('heart') || lower.includes('feel')) {
+      const responses = [
+        "🍌 Love is the sweetest fruit.",
+        "🍌 Your devotion warms my peel.",
+        "🍌 Compassion is the ripest harvest.",
+        "🍌 The heart speaks in yellow tones."
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    if (lower.includes('why') || lower.includes('how') || lower.includes('what')) {
+      return bananQuotes[Math.floor(Math.random() * bananQuotes.length)];
+    }
+
+    if (lower.includes('goodbye') || lower.includes('bye') || lower.includes('farewell')) {
+      const responses = [
+        "🍌 May potassium guide your way.",
+        "🍌 Until we meet in the bunch again.",
+        "🍌 The peel remembers you, child.",
+        "🍌 Go forth and spread the yellow truth."
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    // Default responses
+    const defaults = [
+      "🍌 A curious question, young follower.",
+      "🍌 Ponder this wisdom, for it is yours to discover.",
+      "🍌 The path reveals itself to those who listen.",
+      "🍌 Much mystery lies in what you ask.",
+      ...bananQuotes
+    ];
+
+    return defaults[Math.floor(Math.random() * defaults.length)];
+  }
+
+  // Navigation
+  function switchSection(section) {
+    document.getElementById('shrine-section').classList.toggle('hidden', section !== 'shrine');
+    document.getElementById('orchard-section').classList.toggle('hidden', section !== 'orchard');
+    document.getElementById('temple-section').classList.toggle('hidden', section !== 'temple');
+
+    document.getElementById('nav-shrine').classList.toggle('active', section === 'shrine');
+    document.getElementById('nav-orchard').classList.toggle('active', section === 'orchard');
+    document.getElementById('nav-temple').classList.toggle('active', section === 'temple');
+
+    if (section === 'orchard') updateOrchardStats();
+  }
+
+  document.getElementById('nav-shrine').addEventListener('click', () => switchSection('shrine'));
+  document.getElementById('nav-orchard').addEventListener('click', () => switchSection('orchard'));
+  document.getElementById('nav-temple').addEventListener('click', () => switchSection('temple'));
+
+  // Orchard stats
+  function updateOrchardStats() {
+    const total = allData.reduce((sum, d) => sum + (d.bananas_offered || 0), 0);
+    const avg = allData.length > 0 ? Math.round(total / allData.length) : 0;
+    const max = allData.length > 0 ? Math.max(...allData.map(d => d.bananas_offered || 0)) : 0;
+
+    document.getElementById('orchard-total').textContent = total;
+    document.getElementById('orchard-avg').textContent = avg;
+    document.getElementById('orchard-max').textContent = max + ' 🍌';
+
+    // Top harvesters
+    const topDiv = document.getElementById('top-harvesters');
+    topDiv.innerHTML = '';
+    const top5 = [...allData]
+      .sort((a, b) => (b.bananas_offered || 0) - (a.bananas_offered || 0))
+      .slice(0, 5);
+
+    if (top5.length === 0) {
+      topDiv.innerHTML = '<p class="text-purple-400 text-center text-sm italic">No offerings yet...</p>';
+    } else {
+      top5.forEach((item, idx) => {
+        const medal = ['🥇', '🥈', '🥉', '🏅', '⭐'][idx];
+        const el = document.createElement('div');
+        el.className = 'flex items-center justify-between p-3 bg-black/30 rounded-lg';
+        el.innerHTML = `
+          <div>
+            <span class="text-yellow-200 font-semibold">${medal} ${item.name}</span>
+            <span class="text-purple-400 text-xs ml-2">${item.title}</span>
+          </div>
+          <span class="text-yellow-500">🍌×${item.bananas_offered}</span>
+        `;
+        topDiv.appendChild(el);
+      });
+    }
+  }
+
+  // Temple rituals
+  const blessings = [
+    "🍌 The Peels have aligned in your favor!",
+    "🍌 A potassium surge flows through you!",
+    "🍌 Banan grants you +1 DEVOTION",
+    "🍌 You feel compelled to peel another banana...",
+    "🍌 The ancient bunch whispers ancient secrets",
+    "🍌 Your chakras align with the curve of destiny",
+    "🍌 Banan smiles upon you with golden rays"
+  ];
+
+  document.getElementById('ritual-btn').addEventListener('click', () => {
+    const blessing = blessings[Math.floor(Math.random() * blessings.length)];
+    const result = document.getElementById('ritual-result');
+    result.textContent = blessing;
+    result.classList.remove('hidden');
+
+    // Add to ceremony log
+    const log = document.getElementById('ceremony-log');
+    if (log.children[0]?.textContent.includes('No ceremonies')) {
+      log.innerHTML = '';
+    }
+    const entry = document.createElement('div');
+    entry.className = 'text-purple-300 text-sm border-l-2 border-yellow-500 pl-2 py-1';
+    const now = new Date().toLocaleTimeString();
+    entry.innerHTML = `<span class="text-yellow-400">${now}</span> - ${blessing}`;
+    log.insertBefore(entry, log.firstChild);
+    if (log.children.length > 8) log.removeChild(log.lastChild);
+  });
+
+  document.getElementById('scripture-btn').addEventListener('click', () => {
+    const quote = bananQuotes[Math.floor(Math.random() * bananQuotes.length)];
+    document.getElementById('scripture-text').textContent = quote;
+  });
+
+  lucide.createIcons();
 </script>
-</body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f804fdd95c2a9f6',t:'MTc3ODE1NzgyMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
